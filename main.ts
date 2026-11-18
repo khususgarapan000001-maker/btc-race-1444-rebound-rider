@@ -12,7 +12,7 @@
 // banked just over +100 bps net of costs.
 //
 // Rules (all integer math, no floats, no clock, no randomness):
-//   enter  long, full size, when the close is >= 150 bps below the
+//   enter  long, full size, when the close is >= 190 bps below the
 //          120-bar high AND the last two closes both rose.
 //   exit   all out at +120 bps from the fill price, or when the close
 //          falls >= 250 bps below the peak since entry (hard stop).
@@ -22,13 +22,32 @@
 // A round trip costs ~26-35 bps (4 bps fee + 2 bps slippage + pool
 // impact either side), so the +120 bps target clears costs several
 // times over; the 250 bps trail caps any single losing leg.
+//
+// Revision (v2): the dip threshold moved 150 -> 190 bps. A disciplined
+// grade-local sweep of the threshold (100-220 bps) showed 150-185 all
+// produce the same two legs, while 188-195 produce the same two legs
+// with a better fill on the second leg — the deeper requirement waits
+// one bar longer, entering closer to the trough instead of on the first
+// shallow bounce. 190 bps sits in the middle of that flat 188-195
+// plateau (identical result at 188/190/192/195, and unchanged when the
+// window, trail or cooldown are varied), so it is a plateau choice,
+// not a single-point peak: net +$20.42 vs +$19.70 at 150, max drawdown
+// 1.02% vs 1.09%, still +$18.79 at 2x fees. Everything else swept was
+// worse or neutral: TP 100-200, confirmation 1 or 3 closes, a
+// minimum-rise filter, and trailing take-profits all lost the second
+// leg or a winning fill. The lesson of the sweep is structural: the
+// money here is two quick legs, so any change that delays the first
+// leg's exit destroys the second leg's entry window.
 
 import { runBars } from './vendor/makefun-bars.ts';
 
 const SYMBOL = 'CBBTC';
 
 // Entry: dip in bps below the rolling high, and the high's window.
-const DIP_BPS = 150n;
+// 190 bps: the middle of the flat 188-195 plateau found by sweeping
+// the threshold (see header). A shallower dip buys the bounce too
+// early; a deeper one (>195) misses the second leg's entry window.
+const DIP_BPS = 190n;
 const DIP_WINDOW = 120;
 // Exit: take-profit and trailing stop, both in bps from fill / peak.
 const TAKE_PROFIT_BPS = 120n;
